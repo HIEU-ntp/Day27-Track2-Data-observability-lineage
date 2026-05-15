@@ -4,6 +4,7 @@ import csv
 import json
 from pathlib import Path
 from urllib import request
+from urllib.error import HTTPError
 
 from src.config import DISCORD_WEBHOOK_URL, OUTPUT_DIR, VALID_STATUSES
 
@@ -74,12 +75,21 @@ def send_discord_message(summary: dict[str, int | str], webhook_url: str = DISCO
     http_request = request.Request(
         webhook_url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Discord-Webhook/1.0",
+        },
         method="POST",
     )
-    with request.urlopen(http_request, timeout=15) as response:
-        if response.status >= 400:
-            raise RuntimeError(f"Discord webhook failed with status {response.status}")
+    try:
+        with request.urlopen(http_request, timeout=15) as response:
+            if response.status >= 400:
+                raise RuntimeError(f"Discord webhook failed with status {response.status}")
+    except HTTPError as e:
+        if e.code == 204:
+            pass
+        else:
+            raise
 
 
 def run_lab_check(
